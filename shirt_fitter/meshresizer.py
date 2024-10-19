@@ -37,19 +37,20 @@ def resize(NE, NW, SE, SW, clothesimage):
     map_y = new_points[:, 1].reshape(height, width).astype(np.float32)
 
     warped_image = cv2.remap(img, map_x, map_y, interpolation=cv2.INTER_LINEAR)
-
+    
     mask = np.zeros((height, width), dtype=np.uint8)
-
+    
     hull = cv2.convexHull(new_control_points.astype(np.int32))
 
     cv2.fillPoly(mask, [hull], 255)
 
-    warped_image_rgba = cv2.cvtColor(warped_image, cv2.COLOR_BGR2BGRA)
+    warped_image_rgba = warped_image#cv2.cvtColor(warped_image, cv2.COLOR_BGRA2BGRA)
 
-    warped_image_rgba[:, :, 3] = mask
-
-    cv2.imwrite('warped_image.png', warped_image_rgba)
-    #original_x, original_y = control_points[:, 0], control_points[:, 1]
+    #warped_image_rgba[:, :, 3] = mask
+    #plt.imshow(cv2.cvtColor(warped_image_rgba, cv2.COLOR_BGRA2RGBA))
+    #plt.show()
+    #cv2.imwrite('warped_image.png', warped_image_rgba)
+    # original_x, original_y = control_points[:, 0], control_points[:, 1]
     # new_x, new_y = new_control_points[:, 0], new_control_points[:, 1]
     # plt.rcParams['figure.figsize'] = [10, 10]
     # plt.imshow(cv2.cvtColor(warped_image, cv2.COLOR_BGR2RGB), extent=[pivot[0], pivot[0] + warped_image.shape[1], pivot[1], pivot[1] + warped_image.shape[0]])
@@ -108,8 +109,7 @@ def overlay_image(base_image, overlay_image, pivot):
     #     return base_image
 
     # Split the overlay into its RGBA channels
-    overlay_b, overlay_g, overlay_r, overlay_a = cv2.split(overlay_image)
-
+    _, _, _, overlay_a = cv2.split(overlay_image)
     # Normalize the alpha channel to be in range [0, 1]
     alpha_overlay = overlay_a / 255.0
     alpha_base = 1.0 - alpha_overlay
