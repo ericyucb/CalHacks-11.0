@@ -62,7 +62,11 @@ while True:
         # warped_image_rgba, pivot = resize((topL[0],topL[1]-clothesimage.shape[0]), (topR[0],topR[1]-clothesimage.shape[0]), (bottomL[0],bottomL[1]-clothesimage.shape[0]), (bottomR[0], bottomR[1]-clothesimage.shape[0]), clothesimage)
         mult = 1.9 if abs(topL[0]-topR[0]>370) else 0.00179174*(abs(topL[0]-topR[0])) + 1.2224
         warped_image_rgba, pivot = resize((topL[0], bottomL[1]), (topR[0], bottomR[1]), (bottomL[0],mult*bottomL[1]), (bottomR[0], mult*bottomR[1]), clothesimage)
-        img = overlay_image(img, warped_image_rgba, pivot)
+        # warped_image_rgba, pivot = resize((topL[0], bottomL[1]), (topR[0], bottomR[1]), (bottomL[0],topL[1]), (bottomR[0], topR[1]), clothesimage)
+        try:
+            img = overlay_image(img, warped_image_rgba, pivot)
+        except:
+            pass
         # Recolor back to BGR
         
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
