@@ -2,6 +2,8 @@ import os
 import google.generativeai as genai
 import cv2
 import json
+import time
+import math
 
 genai.configure(api_key='AIzaSyBDhYAAOLh8HNWXOsXZRXEomgH_jlZbZt4')
 
@@ -15,7 +17,7 @@ def upload_to_gemini(path, mime_type=None):
     print(f"Uploaded file '{file.display_name}' as: {file.uri}")
     return file
 
-def gemini_run(frame):
+def gemini_run(model, frame):  # not a loop
     img_path = 'shirt_fitter/gemini_images/test0.png'
     cv2.imwrite(img_path, frame)  # add to folder
 
@@ -32,39 +34,62 @@ def gemini_run(frame):
         recs = [f'{n['brand']} {n['color']} {n['shirt_type']}' for n in recs_dict]
         return description, recs
     except:
-        print('please try again')
         return None
 
+def aura():
+    generation_config = {
+    "temperature": 0,
+    "top_p": 0.95,
+    "top_k": 40,
+    "max_output_tokens": 8192,
+    "response_mime_type": "application/json",
+    }
 
-generation_config = {
-  "temperature": 0,
-  "top_p": 0.95,
-  "top_k": 40,
-  "max_output_tokens": 8192,
-  "response_mime_type": "application/json",
-}
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash-8b",
+        generation_config=generation_config,
+    )
 
-model = genai.GenerativeModel(
-  model_name="gemini-1.5-flash-8b",
-  generation_config=generation_config,
-)
+    # loop for video
+    path = 'shirt_fitter/gemini_images'  # path to folder of images
+    cam = cv2.VideoCapture(0)
+    timer = 0
+    prev_time = time.perf_counter()
+    waiting_for_timer = False
+    while True:
+        current_time = time.perf_counter()
+        dt = current_time - prev_time
+        timer -= dt
 
-# loop for video
-path = 'shirt_fitter/gemini_images'  # path to folder of images
-cam = cv2.VideoCapture(0)
-while True:
-    ret, frame = cam.read()
-    frame = cv2.resize(frame, (640, 360))
-    cv2.imshow('frame', frame)
-    
-    if cv2.waitKey(1) == ord('0'):
-        output = gemini_run(frame)  # if an error occured, output equals to None
-        if output:  # check if there was an output
-            description, recs = output
-            print(description)
-            print(recs)
-        else:
-            print('Try again')
+        ret, frame = cam.read()
+        frame = cv2.resize(frame, (640, 360))
+        
+        if cv2.waitKey(1) == ord('0'):
+            print('timer started')
+            timer = 5.99
+            waiting_for_timer = True
+        if timer < 0 and waiting_for_timer:
+            output = gemini_run(model, frame)  # if an error occured, output equals to None
+            if output:  # check if there was an output
+                description, recs = output
+                print(description)
+                print(recs)
+            else:
+                print('Try again')
+            waiting_for_timer = False
+        if waiting_for_timer:
+            if math.floor(timer) == 0:
+                text = 'Capturing'
+                font_size = 2
+            else:
+                text = str(math.floor(timer))
+                font_size = 7
+            frame = cv2.putText(frame, text, (320, 180), cv2.FONT_HERSHEY_SIMPLEX, font_size, (255, 0, 0), font_size, cv2.LINE_AA)
 
-    if cv2.waitKey(1) == ord('q'):
-        break
+        cv2.imshow('frame', frame)
+        prev_time = current_time
+
+        if cv2.waitKey(1) == ord('q'):
+            break
+
+aura()
