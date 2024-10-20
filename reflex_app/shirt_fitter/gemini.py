@@ -7,19 +7,15 @@ import math
 
 genai.configure(api_key='AIzaSyBDhYAAOLh8HNWXOsXZRXEomgH_jlZbZt4')
 
-
 def upload_to_gemini(path, mime_type=None):
-    """Uploads the given file to Gemini.
-
-  See https://ai.google.dev/gemini-api/docs/prompting_with_media
-  """
+    """Uploads the given file to Gemini."""
     file = genai.upload_file(path, mime_type=mime_type)
     print(f"Uploaded file '{file.display_name}' as: {file.uri}")
     return file
 
-def gemini_run(model, frame):  # not a loop
+def gemini_run(model, frame):
     img_path = 'shirt_fitter/gemini_images/test0.png'
-    cv2.imwrite(img_path, frame)  # add to folder
+    cv2.imwrite(img_path, frame)
 
     prompt_parts = [
         upload_to_gemini(img_path, mime_type="image/png"),
@@ -31,18 +27,18 @@ def gemini_run(model, frame):  # not a loop
         deez = json.loads(response.text)
         description = deez['description']
         recs_dict = deez['recommendations']
-        recs = [f'{n['brand']} {n['color']} {n['shirt_type']}' for n in recs_dict]
+        recs = [f'{n["brand"]} {n["color"]} {n["shirt_type"]}' for n in recs_dict]
         return description, recs
     except:
         return None
 
 def aura():
     generation_config = {
-    "temperature": 0,
-    "top_p": 0.95,
-    "top_k": 40,
-    "max_output_tokens": 8192,
-    "response_mime_type": "application/json",
+        "temperature": 0,
+        "top_p": 0.95,
+        "top_k": 40,
+        "max_output_tokens": 8192,
+        "response_mime_type": "application/json",
     }
 
     model = genai.GenerativeModel(
@@ -50,12 +46,13 @@ def aura():
         generation_config=generation_config,
     )
 
-    # loop for video
-    path = 'shirt_fitter/gemini_images'  # path to folder of images
+    # Video capture loop
+    path = 'shirt_fitter/gemini_images'
     cam = cv2.VideoCapture(0)
     timer = 0
     prev_time = time.perf_counter()
     waiting_for_timer = False
+    first_run = True
     while True:
         current_time = time.perf_counter()
         dt = current_time - prev_time
@@ -63,33 +60,47 @@ def aura():
 
         ret, frame = cam.read()
         frame = cv2.resize(frame, (640, 360))
-        
-        if cv2.waitKey(1) == ord('0'):
+
+        # Start timer on '0' key press
+        if first_run:
+            first_run = False
             print('timer started')
-            timer = 5.99
+            timer = 6.5
             waiting_for_timer = True
+
+        # Perform action after timer
         if timer < 0 and waiting_for_timer:
-            output = gemini_run(model, frame)  # if an error occured, output equals to None
-            if output:  # check if there was an output
+            output = gemini_run(model, frame)
+            if output:
                 description, recs = output
                 print(description)
                 print(recs)
+                break
             else:
                 print('Try again')
             waiting_for_timer = False
+
+        # Display the countdown or "Capturing" message
         if waiting_for_timer:
             if math.floor(timer) == 0:
-                text = 'Capturing'
-                font_size = 2
+                text = 'Capturing!'
+                text_position = (50, 50)
+                font_size = 1.2
             else:
+                frame = cv2.putText(frame, 'Get Ready...', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3, cv2.LINE_AA)  # White text with black border
+                text_position = (270, 190)
                 text = str(math.floor(timer))
-                font_size = 7
-            frame = cv2.putText(frame, text, (320, 180), cv2.FONT_HERSHEY_SIMPLEX, font_size, (255, 0, 0), font_size, cv2.LINE_AA)
+                font_size = 3
+
+            # Display the text in the center with better styling
+            
+            frame = cv2.putText(frame, text, text_position, cv2.FONT_HERSHEY_SIMPLEX, font_size, 
+                                (255, 255, 255), 3, cv2.LINE_AA)  # White text with black border
 
         cv2.imshow('frame', frame)
         prev_time = current_time
 
+        # Exit on 'q' key press
         if cv2.waitKey(1) == ord('q'):
             break
-
-aura()
+    cv2.destroyAllWindows()

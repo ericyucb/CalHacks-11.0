@@ -9,8 +9,7 @@ import requests
 import os
 import urllib.parse
 
-# from ..shirt_fitter import 
-
+from shirt_fitter.gemini import aura
 
 
 # Set API Key and Base URL
@@ -19,34 +18,43 @@ search_url = "https://www.searchapi.io/api/v1/search"
 
 # Define the state to hold form data and other UI state
 class SearchState(rx.State):
-    form_data:Dict[str,str] = {
-        'age': '',
-        'gender': '',
-        'style': ''
-    }
-    merch: List[Dict[str,str]] = [{}]
+
+    merch: List[Dict[str,str]] = [{1: ["Test"], 2: ["Test"]}]
     loading:bool = False
     error:bool = False
+    recommendations: str = []
+    description: str = ""
+
     params = {
             "engine": "google_shopping",
-            "q": f"{form_data['style']} clothes for {form_data['gender']} age {form_data['age']}",
+            "q": "Uniqlo Red Airism Tee",
             "gl": "us",
             "hl": "en",
             "location": "California,United States",
             "api_key": "iTFqVKUGvfwFc8ZKRaYjNycf",
     }
 
-    def handle_change(self, name, value):
-        self.form_data[name] = value
+    # def handle_change(self, name, value):
+    #     self.form_data[name] = value
 
-    async def fetch_shirt_data(self, params):
+    def create_aura(self):
+        output = aura()
+        if output:
+            description, recommendations = output
+            [fetch_shirt_data(params, )for item in recommendations]
+        else:
+            self.create_aura()
+
+
+    async def fetch_shirt_data(self, params, shirt_name):
         try:
+            params.q = shirt_name
             response = requests.get(f"{search_url}?{urllib.parse.urlencode(params)}")
             response.raise_for_status()
             data = response.json()
             print("testing ", data)
 
-            self.merch = data['shopping_results']
+            self.merch = data['shopping_results'][0]
             print("testing ", self.merch)
         except requests.exceptions.RequestException as err:
             print(err)
@@ -66,34 +74,27 @@ def get_product(product):
 
 # Define the UI layout
 def index():
-    return rx.vstack(
-        rx.heading("Search with Form Data"),
-        rx.form(
-            rx.input(
-                value=SearchState.form_data['age'],
-                on_change=lambda value: SearchState.handle_change("age", value),
-                placeholder="Age",
-                label="Age",
+    return  rx.container(
+        rx.color_mode.button(position="top-right"),
+        rx.vstack(
+            rx.heading("Fashion 👕👖", size="30"),
+            rx.flex(
+                rx.foreach(
+                rx.Var.range(2),
+                lambda i: rx.card(f"Card {i + 1}", width="16%"),
             ),
-            rx.input(
-                value=SearchState.form_data['gender'],
-                on_change=lambda value: SearchState.handle_change("gender", value),
-                placeholder="Gender",
-                label="Gender",
+                spacing="2",
+                flex_wrap="wrap",
+                width="100%",
             ),
-            rx.input(
-                value=SearchState.form_data['style'],
-                on_change=lambda value: SearchState.handle_change("style", value),
-                placeholder="Style",
-                label="Style",
-            ),
-            rx.button(
-                "Submit",
-                on_click=SearchState.submit_form,
-                bg="blue",
-                color="white"
-            ),
-            spacing="20px",
+          
+            spacing="5",
+            justify="center",
+            min_height="85vh",
+        ),
+        rx.button(
+            "Take Photo",
+            on_click=SearchState.create_aura
         ),
         rx.cond(SearchState.loading, rx.text("Loading...")),
         rx.cond(SearchState.error, rx.text(f"Error: {SearchState.error}")),
@@ -112,24 +113,3 @@ def index():
 app = rx.App()
 app.add_page(index)
 # app.compile()
-#return rx.container(
-#         rx.color_mode.button(position="top-right"),
-#         rx.vstack(
-#             rx.heading("Fashion 👕👖", size="9"),
-
-            
-#             rx.flex(
-#                 rx.foreach(
-#                 rx.Var.range(2),
-#                 lambda i: rx.card(f"Card {i + 1}", width="16%"),
-#             ),
-#                 spacing="2",
-#                 flex_wrap="wrap",
-#                 width="100%",
-#             ),
-          
-#             spacing="5",
-#             justify="center",
-#             min_height="85vh",
-#         ),
-#     )
