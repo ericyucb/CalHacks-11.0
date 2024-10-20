@@ -2,12 +2,12 @@ import cv2
 import numpy as np
 from PIL import Image
 import mediapipe as mp
-WIDTH = 1280
-HEIGHT = 720
+WIDTH = 1920
+HEIGHT = 1920*round(1440/2560)
 # 3 image input
 def clearify(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 240, 255, cv2.THRESH_BINARY_INV)  # Invert to get black square as foreground
+    _, mask = cv2.threshold(gray, 220, 255, cv2.THRESH_BINARY_INV)  # Invert to get black square as foreground
     mask_3channel = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
     output = np.zeros((image.shape[0], image.shape[1], 4), dtype=np.uint8)
     output[:, :, :3] = image  # Copy original image color
@@ -29,12 +29,16 @@ def generateSegmentation(image_path: str):
     bottom_points = contour_points[contour_points[:, 1] > bottom_threshold]
     left_corner = bottom_points[np.argmin(bottom_points[:, 0])]
     right_corner = bottom_points[np.argmax(bottom_points[:, 0])]
+    # if left_corner[0] == 0:
+    #     left_corner = [image.shape[1]-right_corner[0], left_corner[1]]
+    # if right_corner[0] == image.shape[1]:
+    #     right_corner = [image.shape[1]-left_corner[0], right_corner[1]]
     leftimg = clearify(image[:, :round(0.955*left_corner[0])])
-    centerimg = clearify(image[:, round(0.955*left_corner[0]):round(1.03*right_corner[0])])
-    rightimg = clearify(image[:, round(1.03*right_corner[0]):])
-    cv2.imwrite(f'shirt_fitter/assets/{image_path.split('/')[-1]}_left.png', leftimg)
-    cv2.imwrite(f'shirt_fitter/assets/{image_path.split('/')[-1]}_right.png', rightimg)
-    cv2.imwrite(f'shirt_fitter/assets/{image_path.split('/')[-1]}_center.png', centerimg)
+    centerimg = clearify(image[:, round(0.955*left_corner[0]):min(round(1.03*right_corner[0]), image.shape[1])])
+    rightimg = clearify(image[:, min(round(1.03*right_corner[0]), image.shape[1]):])
+    cv2.imwrite(f'shirt_fitter/assets/{image_path.split("/")[-1]}_left.png', leftimg)
+    cv2.imwrite(f'shirt_fitter/assets/{image_path.split("/")[-1]}_right.png', rightimg)
+    cv2.imwrite(f'shirt_fitter/assets/{image_path.split("/")[-1]}_center.png', centerimg)
 def convert(p): return [p[0] * WIDTH, p[1] * HEIGHT]
 def lerp(a,b,t): return (1-t)*a+t*b
 def llerp(a,b,t): return [(1-t)*a[0]+t*b[0],(1-t)*a[1]+t*b[1]]
@@ -42,30 +46,35 @@ def angb2vec(v1,v2): return np.arccos(np.dot(v1,v2)/(np.linalg.norm(v1)*np.linal
 def master(image1path: str, image2path: str, image3path: str, debug=False):
     selected_outfit = 1
     mp_pose = mp.solutions.pose
+    mp_hands = mp.solutions.hands
     pose = mp_pose.Pose()
+    hands = mp_hands.Hands(min_detection_confidence=0.5, min_tracking_confidence=0.5)
     mp_drawing = mp.solutions.drawing_utils
     cap = cv2.VideoCapture(0)
     overlay_images = [
-        cv2.flip(cv2.flip(cv2.imread(f'shirt_fitter/assets/{image1path.split('/')[-1]}_center.png', cv2.IMREAD_UNCHANGED), 0), 1),
-        cv2.flip(cv2.flip(cv2.imread(f'shirt_fitter/assets/{image2path.split('/')[-1]}_center.png', cv2.IMREAD_UNCHANGED), 0), 1),
-        cv2.flip(cv2.flip(cv2.imread(f'shirt_fitter/assets/{image3path.split('/')[-1]}_center.png', cv2.IMREAD_UNCHANGED), 0), 1),
+        cv2.flip(cv2.flip(cv2.imread(f'shirt_fitter/assets/{image1path.split("/")[-1]}_center.png', cv2.IMREAD_UNCHANGED), 0), 1),
+        cv2.flip(cv2.flip(cv2.imread(f'shirt_fitter/assets/{image2path.split("/")[-1]}_center.png', cv2.IMREAD_UNCHANGED), 0), 1),
+        cv2.flip(cv2.flip(cv2.imread(f'shirt_fitter/assets/{image3path.split("/")[-1]}_center.png', cv2.IMREAD_UNCHANGED), 0), 1),
     ]
     right_sleeves = [
-        cv2.imread(f'shirt_fitter/assets/{image1path.split('/')[-1]}_right.png', cv2.IMREAD_UNCHANGED),
-        cv2.imread(f'shirt_fitter/assets/{image2path.split('/')[-1]}_right.png', cv2.IMREAD_UNCHANGED),
-        cv2.imread(f'shirt_fitter/assets/{image3path.split('/')[-1]}_right.png', cv2.IMREAD_UNCHANGED),
+        cv2.imread(f'shirt_fitter/assets/{image1path.split("/")[-1]}_right.png', cv2.IMREAD_UNCHANGED),
+        cv2.imread(f'shirt_fitter/assets/{image2path.split("/")[-1]}_right.png', cv2.IMREAD_UNCHANGED),
+        cv2.imread(f'shirt_fitter/assets/{image3path.split("/")[-1]}_right.png', cv2.IMREAD_UNCHANGED),
     ]
     left_sleeves = [
-        cv2.flip(cv2.imread(f'shirt_fitter/assets/{image1path.split('/')[-1]}_left.png', cv2.IMREAD_UNCHANGED), 1),
-        cv2.flip(cv2.imread(f'shirt_fitter/assets/{image2path.split('/')[-1]}_left.png', cv2.IMREAD_UNCHANGED), 1),
-        cv2.flip(cv2.imread(f'shirt_fitter/assets/{image3path.split('/')[-1]}_left.png', cv2.IMREAD_UNCHANGED), 1),
+        cv2.flip(cv2.imread(f'shirt_fitter/assets/{image1path.split("/")[-1]}_left.png', cv2.IMREAD_UNCHANGED), 1),
+        cv2.flip(cv2.imread(f'shirt_fitter/assets/{image2path.split("/")[-1]}_left.png', cv2.IMREAD_UNCHANGED), 1),
+        cv2.flip(cv2.imread(f'shirt_fitter/assets/{image3path.split("/")[-1]}_left.png', cv2.IMREAD_UNCHANGED), 1),
     ]
-    overlay_imgs = map(lambda x: x[..., :3], overlay_images)
-    right_slvs = map(lambda x: x[..., :3], right_sleeves)
-    left_slvs = map(lambda x: x[..., :3], left_sleeves)
-    overlay_alphas = map(lambda x: x[..., 3] / 255.0, overlay_images)
-    right_alphas = map(lambda x: x[..., 3] / 255.0, right_sleeves)
-    left_alphas = map(lambda x: x[..., 3] / 255.0, left_sleeves)
+    overlay_imgs = list(map(lambda x: x[..., :3], overlay_images))
+    right_slvs = list(map(lambda x: x[..., :3], right_sleeves))
+    left_slvs = list(map(lambda x: x[..., :3], left_sleeves))
+    overlay_alphas = list(map(lambda x: x[..., 3] / 255.0, overlay_images))
+    right_alphas = list(map(lambda x: x[..., 3] / 255.0, right_sleeves))
+    left_alphas = list(map(lambda x: x[..., 3] / 255.0, left_sleeves))
+
+    prev_finger_up = False
+    selected_outfit = 0
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
@@ -81,6 +90,24 @@ def master(image1path: str, image2path: str, image3path: str, debug=False):
         left_alpha = left_alphas[selected_outfit]
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         rgb_frame = cv2.resize(rgb_frame, (WIDTH, HEIGHT))
+        results = hands.process(rgb_frame)
+
+        toggle = False
+        if results.multi_hand_landmarks:
+            hand = results.multi_hand_landmarks[0].landmark
+            finger_ratio1 = (hand[8].y - hand[5].y)/(hand[5].y - hand[0].y)
+            finger_ratio2 = (hand[12].y - hand[9].y)/(hand[9].y - hand[0].y)
+            if finger_ratio1 > 0.75 and finger_ratio2 > 0.75:
+                if not prev_finger_up:
+                    toggle = True
+                    print('toggled')
+                prev_finger_up = True
+            else:
+                prev_finger_up = False
+            # cv2.putText(frame, str(finger_ratio), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255),2)
+        if toggle:
+            selected_outfit = (selected_outfit + 1) % 3
+
         result = pose.process(rgb_frame)
         if result.pose_landmarks:
             landmarks = result.pose_landmarks.landmark
@@ -117,7 +144,7 @@ def master(image1path: str, image2path: str, image3path: str, debug=False):
             hipL = np.array(convert([landmarks[mp_pose.PoseLandmark.LEFT_HIP].x, landmarks[mp_pose.PoseLandmark.LEFT_HIP].y]))
             shouldL = np.array(convert([landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER].x, landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER].y]))
             elbowL = np.array(convert([landmarks[mp_pose.PoseLandmark.LEFT_ELBOW].x, landmarks[mp_pose.PoseLandmark.LEFT_ELBOW].y]))
-            print(hipR, shouldR)
+            # print(hipR, shouldR)
             theta = angb2vec(hipR-shouldR, elbowR-shouldR)
             theta2 = 1.5*np.pi-theta
             ltheta = angb2vec(hipL-shouldL, elbowL-shouldL)
@@ -178,8 +205,6 @@ def master(image1path: str, image2path: str, image3path: str, debug=False):
             frame = (warped_rsle * warped_rsle_alpha + frame * (1 - warped_rsle_alpha)).astype(np.uint8)
             frame = (warped_lsle * warped_lsle_alpha + frame * (1 - warped_lsle_alpha)).astype(np.uint8)
 
-            # for point in pointstoScaleTo:
-            #     cv2.circle(frame, (round(point[0]), round(point[1])), 5, (255, 255, 255), -1)  # Green circle on points
             #cv2.circle(frame, (round(pointsRightSleeve[3][0]), round(pointsRightSleeve[3][1])), 10, (255, 0, 0), -1)
 
             if debug: 
@@ -190,9 +215,13 @@ def master(image1path: str, image2path: str, image3path: str, debug=False):
                     cv2.circle(frame, (round(point[0]), round(point[1])), 10, (255,0,0), -1)
                 for i, point in enumerate(pointsRightSleeve):
                     cv2.circle(frame, (round(point[0]), round(point[1])), 10, (255,0,0), -1)
+                for point in pointstoScaleTo:
+                    cv2.circle(frame, (round(point[0]), round(point[1])), 5, (255, 255, 255), -1)  # Green circle on points
         cv2.imshow("Live Testing Feed", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     cap.release()
     cv2.destroyAllWindows()
 
+#generateSegmentation('shirt_fitter/test_clothes/shirt3.png')
+#master('reflex_app/shirt_fitter/test_clothes/shirt4.png', 'reflex_app/shirt_fitter/test_clothes/shirt3.png', 'reflex_app/shirt_fitter/test_clothes/shirt2.png', True)

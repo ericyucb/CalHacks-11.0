@@ -19,7 +19,7 @@ def gemini_run(model, frame):
 
     prompt_parts = [
         upload_to_gemini(img_path, mime_type="image/png"),
-        "You are a fashion expert who gives fashion advice to people. Your job is to analyze a photo of me and give me 3 specific recommendations of t-shirts from various brands. Output the 3 clothes as a JSON dictionary that includes the brand, shirt type, and color. Also, provide a concise and simple description of what shirt I am wearing. Reference me in 2nd person."
+        "You are a fashion expert who gives fashion advice to people. Your job is to analyze a photo of me and give me 3 specific recommendations of t-shirts from various brands. Output the 3 clothes as a JSON dictionary that includes the brand, shirt type, and color. Please suggest darker colored clothing. Also, provide a concise and simple description of what shirt I am wearing. Reference me in 2nd person."
     ]
 
     try:
@@ -49,10 +49,9 @@ def aura():
     # Video capture loop
     path = 'shirt_fitter/gemini_images'
     cam = cv2.VideoCapture(0)
-    timer = 0
+    timer = 6.5
     prev_time = time.perf_counter()
-    waiting_for_timer = False
-    first_run = True
+    
     while True:
         current_time = time.perf_counter()
         dt = current_time - prev_time
@@ -61,46 +60,36 @@ def aura():
         ret, frame = cam.read()
         frame = cv2.resize(frame, (640, 360))
 
-        # Start timer on '0' key press
-        if first_run:
-            first_run = False
-            print('timer started')
-            timer = 6.5
-            waiting_for_timer = True
-
         # Perform action after timer
-        if timer < 0 and waiting_for_timer:
+        if timer < 0:
             output = gemini_run(model, frame)
             if output:
+                return output
                 description, recs = output
                 print(description)
                 print(recs)
                 break
             else:
+                return False
                 print('Try again')
-            waiting_for_timer = False
 
         # Display the countdown or "Capturing" message
-        if waiting_for_timer:
-            if math.floor(timer) == 0:
-                text = 'Capturing!'
-                text_position = (50, 50)
-                font_size = 1.2
-            else:
-                frame = cv2.putText(frame, 'Get Ready...', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3, cv2.LINE_AA)  # White text with black border
-                text_position = (270, 190)
-                text = str(math.floor(timer))
-                font_size = 3
-
-            # Display the text in the center with better styling
+   
+        if math.floor(timer) == 0:
+            text = 'Capturing!'
+            text_position = (50, 50)
+            font_size = 1.2
+        else:
+            frame = cv2.putText(frame, 'Get Ready...', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3, cv2.LINE_AA)
+            text_position = (280, 200)
+            text = str(math.floor(timer))
+            font_size = 3
             
-            frame = cv2.putText(frame, text, text_position, cv2.FONT_HERSHEY_SIMPLEX, font_size, 
-                                (255, 255, 255), 3, cv2.LINE_AA)  # White text with black border
+        frame = cv2.putText(frame, text, text_position, cv2.FONT_HERSHEY_SIMPLEX, font_size, 
+                            (255, 255, 255), 3, cv2.LINE_AA) 
 
         cv2.imshow('frame', frame)
+        cv2.waitKey(1)
         prev_time = current_time
 
-        # Exit on 'q' key press
-        if cv2.waitKey(1) == ord('q'):
-            break
     cv2.destroyAllWindows()
