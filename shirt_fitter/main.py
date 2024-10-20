@@ -4,7 +4,7 @@ import numpy as np
 from meshresizer import resize, overlay_image
 
 global clothesimage
-clothesimage = cv2.imread("shirt_fitter/clothes2transparent.png", cv2.IMREAD_UNCHANGED)
+clothesimage = cv2.imread("clothes2transparent.png", cv2.IMREAD_UNCHANGED)
 clothesimage = cv2.resize(clothesimage, (440, 667))
 def convert(p):  # point in 0-1 form
     return [p[0] * WIDTH, p[1] * HEIGHT]
