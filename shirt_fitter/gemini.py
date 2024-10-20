@@ -49,7 +49,6 @@ while True:
         ]
  
         response = model.generate_content(prompt_parts)
-        print(response.text)
         deez = json.loads(response.text)
         description = deez['description']
         recs_dict = deez['recommendations']
